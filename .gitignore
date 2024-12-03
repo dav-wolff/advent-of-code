@@ -1,0 +1,7 @@
+AOC_SESSION
+
+/inputs/
+/target/
+
+.*
+!.gitignore

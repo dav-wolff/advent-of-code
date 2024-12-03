@@ -1,0 +1,8 @@
+[package]
+name = "Advent-of-Code"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+aoc-client = "0.2.0"
+unindent = "0.2.3"
