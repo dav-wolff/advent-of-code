@@ -2,6 +2,7 @@ use std::{fmt::{Debug, Display}, fs, io, path::PathBuf};
 use aoc_client::AocClient;
 use unindent::unindent;
 
+mod utils;
 mod year_2024;
 
 fn main() {
