@@ -7,6 +7,7 @@ name = "Advent-of-Code"
 version = "1.0.0"
 dependencies = [
  "aoc-client",
+ "regex",
  "unindent",
 ]
 
