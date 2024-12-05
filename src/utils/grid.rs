@@ -43,7 +43,7 @@ impl<T> Grid<T> {
 	pub fn empty() -> Self {
 		Self::default()
 	}
-
+	
 	pub fn is_empty(&self) -> bool {
 		self.items.is_empty()
 	}
