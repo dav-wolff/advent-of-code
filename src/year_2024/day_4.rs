@@ -1,4 +1,4 @@
-use crate::{utils::{Direction, Grid}, Solution};
+use crate::{utils::{DiagonalDirection, Grid}, Solution};
 use super::Day;
 
 impl Solution for Day<4> {
@@ -26,7 +26,7 @@ impl Solution for Day<4> {
 		grid.positions()
 			.filter_map(|(position, &item)| (item == 'X').then_some(position))
 			.map(|position| {
-				Direction::each()
+				DiagonalDirection::each()
 					.filter(|&direction| {
 						let mut position = position;
 						grid.step(&mut position, direction) == Some(&'M')
@@ -44,10 +44,10 @@ impl Solution for Day<4> {
 		grid.positions()
 			.filter_map(|(position, &item)| (item == 'A').then_some(position))
 			.filter(|&position| {
-				let up_left = grid.step(position, Direction::UpLeft);
-				let up_right = grid.step(position, Direction::UpRight);
-				let down_left = grid.step(position, Direction::DownLeft);
-				let down_right = grid.step(position, Direction::DownRight);
+				let up_left = grid.step(position, DiagonalDirection::UpLeft);
+				let up_right = grid.step(position, DiagonalDirection::UpRight);
+				let down_left = grid.step(position, DiagonalDirection::DownLeft);
+				let down_right = grid.step(position, DiagonalDirection::DownRight);
 				
 				[up_left, up_right, down_left, down_right].into_iter()
 					.all(|item| matches!(item, Some('M' | 'S')))

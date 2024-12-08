@@ -1,39 +1,10 @@
-use std::{fmt::Display, ops::Index};
+use std::{fmt::Display, ops::{Index, IndexMut}};
 
-use super::MaybeMut;
+use super::{DiagonalDirection, MaybeMut};
 
 pub type Position = (usize, usize);
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Direction {
-	Up,
-	Down,
-	Left,
-	Right,
-	UpLeft,
-	UpRight,
-	DownLeft,
-	DownRight,
-}
-
-impl Direction {
-	const DIRECTIONS: [Direction; 8] = [
-		Direction::Up,
-		Direction::Down,
-		Direction::Left,
-		Direction::Right,
-		Direction::UpLeft,
-		Direction::UpRight,
-		Direction::DownLeft,
-		Direction::DownRight,
-	];
-	
-	pub fn each() -> impl Iterator<Item = Self> {
-		Self::DIRECTIONS.into_iter()
-	}
-}
-
-#[derive(Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Grid<T> {
 	items: Vec<T>,
 	width: usize,
@@ -61,6 +32,10 @@ impl<T> Grid<T> {
 			.map(|y| &self.items[y * self.width()..(y + 1) * self.width()])
 	}
 	
+	pub fn items(&self) -> impl Iterator<Item = &T> {
+		self.items.iter()
+	}
+	
 	pub fn positions(&self) -> impl Iterator<Item = (Position, &T)> {
 		(0..self.height())
 			.flat_map(move |y| (0..self.width())
@@ -68,26 +43,40 @@ impl<T> Grid<T> {
 			)
 	}
 	
-	pub fn step(&self, mut position: impl MaybeMut<Position>, direction: Direction) -> Option<&T> {
-		if self.is_empty() {
-			return None;
-		}
+	pub fn step(&self, mut position: impl MaybeMut<Position>, direction: impl Into<DiagonalDirection>) -> Option<&T> {
+		let position = position.as_mut();
+		let direction = direction.into();
 		
-		let (x, y) = position.as_mut();
+		self.step_position(position, direction)
+			.then_some(&self[*position])
+	}
+	
+	pub fn step_mut(&mut self, mut position: impl MaybeMut<Position>, direction: impl Into<DiagonalDirection>) -> Option<&mut T> {
+		let position = position.as_mut();
+		let direction = direction.into();
+		
+		self.step_position(position, direction)
+			.then_some(&mut self[*position])
+	}
+	
+	fn step_position(&self, (x, y): &mut Position, direction: DiagonalDirection) -> bool {
+		if self.is_empty() {
+			return false;
+		}
 		
 		match direction {
-			Direction::Left if *x > 0 => *x -= 1,
-			Direction::Up if *y > 0 => *y -= 1,
-			Direction::Right if *x < self.width() - 1 => *x += 1,
-			Direction::Down if *y < self.height() - 1 => *y += 1,
-			Direction::UpLeft if *x > 0 && *y > 0 => {*x -= 1; *y -= 1;},
-			Direction::DownLeft if *x > 0 && *y < self.height() - 1 => {*x -= 1; *y += 1;},
-			Direction::UpRight if *x < self.width() - 1 && *y > 0 => {*x += 1; *y -= 1;},
-			Direction::DownRight if *x < self.width() - 1 && *y < self.height() - 1 => {*x += 1; *y += 1;},
-			_ => return None,
+			DiagonalDirection::Left if *x > 0 => *x -= 1,
+			DiagonalDirection::Up if *y > 0 => *y -= 1,
+			DiagonalDirection::Right if *x < self.width() - 1 => *x += 1,
+			DiagonalDirection::Down if *y < self.height() - 1 => *y += 1,
+			DiagonalDirection::UpLeft if *x > 0 && *y > 0 => {*x -= 1; *y -= 1;},
+			DiagonalDirection::DownLeft if *x > 0 && *y < self.height() - 1 => {*x -= 1; *y += 1;},
+			DiagonalDirection::UpRight if *x < self.width() - 1 && *y > 0 => {*x += 1; *y -= 1;},
+			DiagonalDirection::DownRight if *x < self.width() - 1 && *y < self.height() - 1 => {*x += 1; *y += 1;},
+			_ => return false,
 		}
 		
-		Some(&self[(*x, *y)])
+		true
 	}
 }
 
@@ -96,6 +85,12 @@ impl<T> Index<Position> for Grid<T> {
 	
 	fn index(&self, (x, y): Position) -> &Self::Output {
 		&self.items[x + y * self.width]
+	}
+}
+
+impl<T> IndexMut<Position> for Grid<T> {
+	fn index_mut(&mut self, (x, y): Position) -> &mut Self::Output {
+		&mut self.items[x + y * self.width]
 	}
 }
 

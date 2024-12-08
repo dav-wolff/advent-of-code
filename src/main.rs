@@ -1,3 +1,6 @@
+#![forbid(unsafe_code)]
+#![deny(non_snake_case)]
+
 use std::{fmt::{Debug, Display}, fs, io, path::PathBuf};
 use aoc_client::AocClient;
 use unindent::unindent;
