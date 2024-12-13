@@ -1,33 +1,49 @@
 #![forbid(unsafe_code)]
 #![deny(non_snake_case)]
+#![allow(refining_impl_trait)]
 
-use std::{fmt::{Debug, Display}, fs, io, path::PathBuf};
+use std::{fs, io, iter, path::PathBuf, time::{Duration, Instant}};
 use aoc_client::AocClient;
+use clap::Parser;
+use either::Either;
+use solution::{Answer, Solution, SolutionSet};
 use unindent::unindent;
 
+mod solution;
 mod utils;
 mod year_2024;
 
-fn main() {
-	let context = Context {
-		day: None,
-		test: true,
-		solve: true,
-	};
-	
-	year_2024::visit_days(context);
+#[derive(Parser, Debug)]
+struct AocArgs {
+	#[arg(long)]
+	skip_tests: bool,
+	#[arg(long)]
+	skip_solve: bool,
+	#[arg(long)]
+	time: bool,
+	#[arg(long)]
+	day: Option<u8>,
 }
 
-trait Solution {
-	type Result: Display + Debug + PartialEq;
+fn main() {
+	let args = AocArgs::parse();
 	
-	const TEST_INPUT_ONE: &str;
-	const TEST_RESULT_ONE: Self::Result;
-	const TEST_INPUT_TWO: &str;
-	const TEST_RESULT_TWO: Self::Result;
+	let mut context = Context {
+		day: args.day,
+		test: !args.skip_tests,
+		solve: !args.skip_solve,
+		time: args.time,
+		was_visited: false,
+	};
 	
-	fn part_one(input: &str) -> Self::Result;
-	fn part_two(input: &str) -> Self::Result;
+	year_2024::visit_days(&mut context);
+	
+	match (context.day, context.was_visited) {
+		(Some(day), false) => {
+			eprintln!("No solution available for day {day}");
+		},
+		_ => (),
+	}
 }
 
 struct Day<const D: u8>;
@@ -44,29 +60,70 @@ struct Context {
 	day: Option<u8>,
 	test: bool,
 	solve: bool,
+	time: bool,
+	was_visited: bool,
 }
 
 impl Context {
-	fn visit_day<S: Solution + DayNumber>(&self) {
+	fn visit_day<S: Solution + DayNumber>(&mut self) {
 		if let Some(day) = self.day {
 			if day != S::DAY {
 				return;
 			}
 		}
 		
+		self.was_visited = true;
+		
 		if self.test {
 			test_part_one::<S>();
 			test_part_two::<S>();
 		}
 		
-		if self.solve {
+		if self.solve || self.time {
+			let print = |part, answer, time: Duration| {
+				if self.time {
+					println!("Day {} part {part} took {}ms", S::DAY, time.as_millis());
+				}
+				if self.solve {
+					println!("Day {} part {part}: {answer}", S::DAY);
+				}
+			};
+			
 			let input = get_input(S::DAY);
-			let result = S::part_one(&input);
-			println!("Day {} part 1: {result}", S::DAY);
-			let result = S::part_two(&input);
-			println!("Day {} part 2: {result}", S::DAY);
+			
+			for (answer, time) in time_part(|| S::part_one(&input)) {
+				print('1', answer, time);
+			}
+			for (answer, time) in time_part(|| S::part_two(&input)) {
+				print('2', answer, time);
+			}
 		}
 	}
+}
+
+fn time_part<F, S, A>(part: F) -> impl Iterator<Item = (A, Duration)>
+where
+	F: Fn() -> S,
+	S: SolutionSet<A>,
+	A: Answer,
+{
+	if !S::IS_DEFERRED {
+		let start = Instant::now();
+		let answer = part();
+		let time = Instant::now() - start;
+		return Either::Left(iter::once((answer.solve(0), time)));
+	}
+	
+	let solution_set = part();
+	let iter = (0..S::SOLUTION_COUNT)
+		.map(move |i| {
+			let start = Instant::now();
+			let answer = solution_set.solve(i);
+			let time = Instant::now() - start;
+			(answer, time)
+		});
+	
+	Either::Right(iter)
 }
 
 fn get_input(day: u8) -> String {
@@ -97,11 +154,19 @@ fn get_input(day: u8) -> String {
 }
 
 fn test_part_one<S: Solution>() {
-	let result = S::part_one(&unindent(S::TEST_INPUT_ONE));
-	assert_eq!(result, S::TEST_RESULT_ONE);
+	let input = unindent(S::TEST_INPUT_ONE);
+	let solution_set = S::part_one(&input);
+	check_part(solution_set, S::TEST_RESULT_ONE);
 }
 
 fn test_part_two<S: Solution>() {
-	let result = S::part_two(&unindent(S::TEST_INPUT_TWO));
-	assert_eq!(result, S::TEST_RESULT_TWO);
+	let input = unindent(S::TEST_INPUT_TWO);
+	let solution_set = S::part_two(&input);
+	check_part(solution_set, S::TEST_RESULT_TWO);
+}
+
+fn check_part<A: Answer>(solution_set: impl SolutionSet<A>, expected: A) {
+	for answer in solution_set.solve_all() {
+		assert_eq!(answer, expected);
+	}
 }

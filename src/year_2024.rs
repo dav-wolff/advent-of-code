@@ -7,7 +7,7 @@ mod day_4;
 mod day_5;
 mod day_6;
 
-pub fn visit_days(context: Context) {
+pub fn visit_days(context: &mut Context) {
 	context.visit_day::<Day<1>>();
 	context.visit_day::<Day<2>>();
 	context.visit_day::<Day<3>>();

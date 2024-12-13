@@ -1,6 +1,6 @@
 use std::{cell::Cell, collections::HashSet, fmt::Display};
 
-use crate::{utils::{Direction, Grid, Position}, Solution};
+use crate::{solution::SolutionSet, utils::{Direction, Grid, Position}, Solution};
 use super::Day;
 
 impl Solution for Day<6> {
@@ -31,24 +31,45 @@ impl Solution for Day<6> {
 			.count()
 	}
 	
-	fn part_two(input: &str) -> usize {
-		let (mut map, guard) = parse_input(input);
-		walk_map(&mut map, guard);
-		
-		let positions: Vec<_> = map.positions()
-			.filter(|&(position, _)| position != guard.0)
-			.filter(|&(_, &field)| field == Field::Visited)
-			.map(|(position, _)| position)
-			.collect();
-		
-		positions.into_iter()
-			.filter(|&position| {
-				map[position] = Field::Obstacle;
-				let does_loop = does_map_loop(&map, guard);
-				map[position] = Field::Visited;
-				does_loop
-			})
-			.count()
+	fn part_two(input: &str) -> impl SolutionSet<usize> {
+		(|| {
+			let (mut map, guard) = parse_input(input);
+			walk_map(&mut map, guard);
+			
+			let positions: Vec<_> = map.positions()
+				.filter(|&(position, _)| position != guard.0)
+				.filter(|&(_, &field)| field == Field::Visited)
+				.map(|(position, _)| position)
+				.collect();
+			
+			positions.into_iter()
+				.filter(|&position| {
+					map[position] = Field::Obstacle;
+					let does_loop = does_map_loop(&map, guard);
+					map[position] = Field::Visited;
+					does_loop
+				})
+				.count()
+		},
+		|| {
+			let (mut map, guard) = parse_input(input);
+			walk_map(&mut map, guard);
+			
+			let positions: Vec<_> = map.positions()
+				.filter(|&(position, _)| position != guard.0)
+				.filter(|&(_, &field)| field == Field::Visited)
+				.map(|(position, _)| position)
+				.collect();
+			
+			positions.into_iter()
+				.filter(|&position| {
+					map[position] = Field::Obstacle;
+					let does_loop = does_map_loop(&map, guard);
+					map[position] = Field::Visited;
+					does_loop
+				})
+				.count()
+		})
 	}
 }
 
