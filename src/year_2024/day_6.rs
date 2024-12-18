@@ -1,6 +1,6 @@
 use std::{cell::Cell, collections::HashSet, fmt::Display};
 
-use crate::{solution::SolutionSet, utils::{Direction, Grid, Position}, Solution};
+use crate::{solution::SolutionSet, utils::{Direction, Grid}, Solution};
 use super::Day;
 
 impl Solution for Day<6> {
@@ -36,13 +36,13 @@ impl Solution for Day<6> {
 			let (mut map, guard) = parse_input(input);
 			walk_map(&mut map, guard);
 			
-			let positions: Vec<_> = map.positions()
-				.filter(|&(position, _)| position != guard.0)
+			let obstable_positions: Vec<_> = map.positions()
+				.filter(|&(position, _)| position != guard.position)
 				.filter(|&(_, &field)| field == Field::Visited)
 				.map(|(position, _)| position)
 				.collect();
 			
-			positions.into_iter()
+			obstable_positions.into_iter()
 				.filter(|&position| {
 					map[position] = Field::Obstacle;
 					let does_loop = does_map_loop(&map, guard);
@@ -52,23 +52,9 @@ impl Solution for Day<6> {
 				.count()
 		},
 		|| {
-			let (mut map, guard) = parse_input(input);
-			walk_map(&mut map, guard);
+			let (map, guard) = parse_input(input);
 			
-			let positions: Vec<_> = map.positions()
-				.filter(|&(position, _)| position != guard.0)
-				.filter(|&(_, &field)| field == Field::Visited)
-				.map(|(position, _)| position)
-				.collect();
-			
-			positions.into_iter()
-				.filter(|&position| {
-					map[position] = Field::Obstacle;
-					let does_loop = does_map_loop(&map, guard);
-					map[position] = Field::Visited;
-					does_loop
-				})
-				.count()
+			part_two_fast(map, guard)
 		})
 	}
 }
@@ -91,7 +77,13 @@ impl Display for Field {
 	}
 }
 
-fn parse_input(input: &str) -> (Grid<Field>, (Position, Direction)) {
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+struct Guard {
+	position: (usize, usize),
+	direction: Direction,
+}
+
+fn parse_input(input: &str) -> (Grid<Field>, Guard) {
 	let guard: &Cell<Option<_>> = &Cell::new(None);
 	
 	let grid: Grid<_> = input.lines()
@@ -104,7 +96,10 @@ fn parse_input(input: &str) -> (Grid<Field>, (Position, Direction)) {
 					'.' => Field::Unvisited,
 					'^' | '<' | '>' | 'v' => {
 						assert!(guard.get().is_none());
-						guard.set(Some(((x, y), char.try_into().unwrap())));
+						guard.set(Some(Guard {
+							position: (x, y),
+							direction: char.try_into().unwrap(),
+						}));
 						Field::Visited
 					},
 					_ => panic!("unexpected input"),
@@ -116,33 +111,79 @@ fn parse_input(input: &str) -> (Grid<Field>, (Position, Direction)) {
 	(grid, guard.get().unwrap())
 }
 
-fn walk_map(map: &mut Grid<Field>, (mut guard_position, mut guard_direction): (Position, Direction)) {
-	while let Some(&field) = map.step(guard_position, guard_direction) {
-		if field == Field::Obstacle {
-			guard_direction = guard_direction.rotate_right();
-		} else {
-			let field = map.step_mut(&mut guard_position, guard_direction).unwrap();
-			*field = Field::Visited;
-		}
+fn walk_map(map: &mut Grid<Field>, mut guard: Guard) {
+	while take_step(map, &mut guard) {
+		map[guard.position] = Field::Visited;
 	}
 }
 
-fn does_map_loop(map: &Grid<Field>, (mut guard_position, mut guard_direction): (Position, Direction)) -> bool {
-	let mut visited = HashSet::new();
-	
-	while let Some(&field) = map.step(guard_position, guard_direction) {
+fn take_step(map: &Grid<Field>, guard: &mut Guard) -> bool {
+	while let Some(&field) = map.step(guard.position, guard.direction) {
 		if field == Field::Obstacle {
-			guard_direction = guard_direction.rotate_right();
+			guard.direction = guard.direction.rotate_right();
 		} else {
-			map.step(&mut guard_position, guard_direction).unwrap();
-		}
-		
-		if visited.contains(&(guard_position, guard_direction)) {
+			map.step(&mut guard.position, guard.direction).unwrap();
 			return true;
 		}
-		
-		visited.insert((guard_position, guard_direction));
 	}
 	
 	false
+}
+
+fn does_map_loop(map: &Grid<Field>, mut guard: Guard) -> bool {
+	let mut visited = HashSet::new();
+	
+	while let Some(&field) = map.step(guard.position, guard.direction) {
+		if field == Field::Obstacle {
+			guard.direction = guard.direction.rotate_right();
+		} else {
+			map.step(&mut guard.position, guard.direction).unwrap();
+		}
+		
+		if visited.contains(&(guard.position, guard.direction)) {
+			return true;
+		}
+		
+		visited.insert((guard.position, guard.direction));
+	}
+	
+	false
+}
+
+fn part_two_fast(mut map: Grid<Field>, mut guard: Guard) -> usize {
+	let mut loop_count = 0;
+	let mut visited = HashSet::new();
+	visited.insert(guard);
+	let mut obstacle = guard;
+	
+	while take_step(&map, &mut obstacle) {
+		visited.insert(obstacle);
+		
+		if map[obstacle.position] == Field::Visited {
+			guard = obstacle;
+			continue;
+		}
+		
+		map[obstacle.position] = Field::Obstacle;
+		// let mut newly_visited = HashSet::new();
+		let mut visited = visited.clone();
+		
+		while take_step(&map, &mut guard) {
+			// if visited.contains(&guard) || newly_visited.contains(&guard) {
+			if visited.contains(&guard) {
+				loop_count += 1;
+				break;
+			}
+			
+			// newly_visited.insert(guard);
+			visited.insert(guard);
+
+		}
+		
+		map[obstacle.position] = Field::Visited;
+		
+		guard = obstacle;
+	}
+	
+	loop_count
 }

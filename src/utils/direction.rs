@@ -6,6 +6,7 @@ pub enum Direction {
 	Right,
 }
 
+#[allow(dead_code)]
 impl Direction {
 	pub fn rotate_left(self) -> Self {
 		use Direction::*;

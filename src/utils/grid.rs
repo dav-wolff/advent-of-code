@@ -10,6 +10,7 @@ pub struct Grid<T> {
 	width: usize,
 }
 
+#[allow(dead_code)]
 impl<T> Grid<T> {
 	pub fn empty() -> Self {
 		Self::default()
